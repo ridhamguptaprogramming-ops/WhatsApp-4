@@ -9,12 +9,20 @@ export interface User {
   fcmTokens?: string[];
 }
 
+export interface Reaction {
+  emoji: string;
+  userId: string;
+  timestamp: any;
+}
+
 export interface Chat {
   chatId: string;
   participants: string[];
   type: 'one-to-one' | 'group';
   name?: string;
   photoURL?: string;
+  admins?: string[]; // List of admin user IDs
+  pinnedMessages?: string[]; // List of messsage IDs
   lastMessage?: {
     text: string;
     senderId: string;
@@ -30,10 +38,13 @@ export interface Message {
   chatId: string;
   senderId: string;
   text: string;
-  type: 'text' | 'image' | 'video' | 'file';
+  type: 'text' | 'image' | 'video' | 'file' | 'system';
   timestamp: any;
   status: 'sent' | 'delivered' | 'read';
   mediaUrl?: string;
+  replyTo?: string; // ID of the message being replied to
+  reactions?: Reaction[];
+  isPinned?: boolean;
 }
 
 export interface TypingStatus {

@@ -12,7 +12,7 @@ import {
   getDocFromServer,
   limit
 } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 import { Chat, Message, User } from '../types';
 
@@ -38,6 +38,7 @@ export const chatService = {
       chatId: '', // placeholder
       participants,
       type: 'one-to-one',
+      unreadCount: {},
       createdAt: serverTimestamp(),
     });
     
@@ -50,8 +51,10 @@ export const chatService = {
     const newChatRef = await addDoc(chatsRef, {
       chatId: '',
       participants,
+      admins: [participants[participants.length - 1]], // The creator is most likely the last added in current logic
       type: 'group',
       name,
+      unreadCount: {},
       createdAt: serverTimestamp(),
       photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=00a884&color=fff`,
     });
@@ -60,7 +63,14 @@ export const chatService = {
     return newChatRef.id;
   },
 
-  async sendMessage(chatId: string, senderId: string, text: string, type: 'text' | 'image' | 'video' | 'file' = 'text', mediaUrl?: string) {
+  async sendMessage(
+    chatId: string, 
+    senderId: string, 
+    text: string, 
+    type: 'text' | 'image' | 'video' | 'file' | 'system' = 'text', 
+    mediaUrl?: string,
+    replyTo?: string
+  ) {
     const messagesRef = collection(db, 'chats', chatId, 'messages');
     const newMessage = {
       messageId: '',
@@ -70,7 +80,8 @@ export const chatService = {
       type,
       timestamp: serverTimestamp(),
       status: 'sent',
-      ...(mediaUrl && { mediaUrl })
+      ...(mediaUrl && { mediaUrl }),
+      ...(replyTo && { replyTo })
     };
 
     const docRef = await addDoc(messagesRef, newMessage);
@@ -79,12 +90,13 @@ export const chatService = {
     // Update chat head and increment unread counts for others
     const chatRef = doc(db, 'chats', chatId);
     const chatDoc = await getDocFromServer(chatRef);
-    const participants = chatDoc.data()?.participants as string[];
+    const data = chatDoc.data();
+    const participants = data?.participants as string[];
     
     const unreadUpdate: any = {};
     participants.forEach(p => {
       if (p !== senderId) {
-        unreadUpdate[`unreadCount.${p}`] = (chatDoc.data()?.unreadCount?.[p] || 0) + 1;
+        unreadUpdate[`unreadCount.${p}`] = (data?.unreadCount?.[p] || 0) + 1;
       }
     });
 
@@ -101,14 +113,38 @@ export const chatService = {
     });
   },
 
-  async sendMediaMessage(chatId: string, senderId: string, file: File) {
+  async sendMediaMessage(
+    chatId: string, 
+    senderId: string, 
+    file: File, 
+    onProgress?: (progress: number) => void
+  ) {
     const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
     const storageRef = ref(storage, `chats/${chatId}/${Date.now()}_${file.name}`);
     
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    
-    await this.sendMessage(chatId, senderId, '', type, downloadURL);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise<void>((resolve, reject) => {
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        }, 
+        (error) => {
+          console.error("Storage upload error:", error);
+          reject(error);
+        }, 
+        async () => {
+          try {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            await this.sendMessage(chatId, senderId, '', type, downloadURL);
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
   },
 
   async resetUnreadCount(chatId: string, userId: string) {
@@ -136,5 +172,58 @@ export const chatService = {
         'lastMessage.status': 'read'
       });
     }
+  },
+
+  async addReaction(chatId: string, messageId: string, userId: string, emoji: string) {
+    const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+    const messageDoc = await getDocFromServer(messageRef);
+    const data = messageDoc.data();
+    
+    let reactions: any[] = data?.reactions || [];
+    // Remove existing reaction from this user if it's the same emoji (toggle off) or different (update)
+    const existingIndex = reactions.findIndex(r => r.userId === userId);
+    
+    if (existingIndex > -1) {
+      if (reactions[existingIndex].emoji === emoji) {
+        reactions.splice(existingIndex, 1);
+      } else {
+        reactions[existingIndex] = { emoji, userId, timestamp: new Date() };
+      }
+    } else {
+      reactions.push({ emoji, userId, timestamp: new Date() });
+    }
+    
+    await updateDoc(messageRef, { reactions });
+  },
+
+  async togglePinMessage(chatId: string, messageId: string, isPinned: boolean) {
+    const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+    const chatRef = doc(db, 'chats', chatId);
+    
+    await updateDoc(messageRef, { isPinned });
+    
+    const chatDoc = await getDocFromServer(chatRef);
+    const pinnedMessages: string[] = chatDoc.data()?.pinnedMessages || [];
+    
+    if (isPinned) {
+      if (!pinnedMessages.includes(messageId)) {
+        await updateDoc(chatRef, {
+          pinnedMessages: [...pinnedMessages, messageId]
+        });
+      }
+    } else {
+      await updateDoc(chatRef, {
+        pinnedMessages: pinnedMessages.filter(id => id !== messageId)
+      });
+    }
+  },
+
+  async createTaskFromMessage(userId: string, messageText: string): Promise<void> {
+    const tasksRef = collection(db, 'users', userId, 'tasks');
+    await addDoc(tasksRef, {
+      title: messageText,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+    });
   }
 };

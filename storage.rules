@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /chats/{chatId}/{allPaths=**} {
+      // Allow read/write if the user is signed in
+      // In a real app, you'd check if the user is a participant of the chat
+      // but there's no easy way to cross-reference Firestore from Storage rules 
+      // without custom claims or additional complexity in this environment.
+      allow read, write: if request.auth != null;
+    }
+    match /users/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

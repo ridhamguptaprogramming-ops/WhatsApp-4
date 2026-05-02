@@ -63,6 +63,24 @@
         "mediaUrl": { "type": "string" }
       },
       "required": ["messageId", "chatId", "senderId", "timestamp", "status"]
+    },
+    "WhiteboardStroke": {
+      "title": "3D Whiteboard Stroke",
+      "description": "A single continuous line drawn in 3D space.",
+      "type": "object",
+      "properties": {
+        "strokeId": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "points": { 
+          "type": "array",
+          "items": { "type": "number" }
+        },
+        "color": { "type": "string" },
+        "width": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["strokeId", "chatId", "senderId", "points", "color", "width", "timestamp"]
     }
   },
   "firestore": {
@@ -77,6 +95,10 @@
     "/chats/{chatId}/messages/{messageId}": {
       "schema": "Message",
       "description": "Message history for a specific chat."
+    },
+    "/chats/{chatId}/whiteboard_strokes/{strokeId}": {
+      "schema": "WhiteboardStroke",
+      "description": "Real-time 3D drawing strokes for the chat session."
     },
     "/chats/{chatId}/typing/{userId}": {
       "schema": {

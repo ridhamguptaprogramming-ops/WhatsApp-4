@@ -48,17 +48,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // Request FCM Token
         try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const token = await getToken(messaging, {
-              vapidKey: 'BPaY8lZp0_jPq3u7M-wzS4Tz-K4ZqZ6Q1nF8YJ4J-oA' // Note: This is an example, real VAPID key comes from Firebase Console
-            });
-            if (token) {
-              await setDoc(userDocRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+          const vapidKey = import.meta.env.VITE_FCM_VAPID_KEY?.trim();
+          // Basics validation: VAPID keys are usually long 64+ char base64 strings
+          // If it sounds like a placeholder or is missing, skip silently to avoid console spam
+          if (vapidKey && vapidKey.length > 30 && !vapidKey.includes('YOUR_')) {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              try {
+                const token = await getToken(messaging, { vapidKey });
+                if (token) {
+                  await setDoc(userDocRef, { fcmTokens: arrayUnion(token) }, { merge: true });
+                }
+              } catch (getTokenError: any) {
+                // Catch the common 'atob' error caused by malformed VAPID keys
+                if (getTokenError.message?.includes('atob') || getTokenError.code === 'messaging/invalid-vapid-key') {
+                  console.info('Push notifications disabled: VITE_FCM_VAPID_KEY is not a valid Base64 string.');
+                } else {
+                  console.warn('FCM Token generation failed:', getTokenError.message);
+                }
+              }
             }
           }
         } catch (err) {
-          console.error('Error getting FCM token:', err);
+          // General suppression for environment-related FCM failures in preview
+          console.debug('FCM setup skipped or failed:', err);
         }
 
         // Handle foreground notifications

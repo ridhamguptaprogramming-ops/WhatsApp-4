@@ -90,6 +90,26 @@ service cloud.firestore {
         allow read: if isParticipantOfChat(chatId);
         allow write: if isOwner(userId);
       }
+
+      // --- Whiteboard Rules ---
+      match /whiteboard_strokes/{strokeId} {
+        function isValidStroke(data) {
+          return data.senderId == request.auth.uid &&
+                 data.chatId == chatId &&
+                 data.points is list &&
+                 data.points.size() <= 1500 && // Slightly more for detailed 3D curves
+                 data.color is string &&
+                 data.width is number;
+        }
+
+        function hasRequiredStrokeFields(data) {
+          return data.keys().hasAll(['strokeId', 'chatId', 'senderId', 'points', 'color', 'width', 'timestamp']);
+        }
+
+        allow read, list: if isParticipantOfChat(chatId);
+        allow create: if isParticipantOfChat(chatId) && hasRequiredStrokeFields(incoming()) && isValidStroke(incoming());
+        allow delete: if isParticipantOfChat(chatId); // Allow anyone in chat to clear or delete a stroke for collaboration
+      }
     }
   }
 }

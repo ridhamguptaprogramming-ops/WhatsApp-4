@@ -1,30 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-3xl: 3rem;
+
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
 }
 
 @layer base {
   body {
-    @apply font-sans bg-[#f0f2f5] text-[#111b21];
+    @apply antialiased text-[#111b21] bg-[#fdfdfd] font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom Scrollbar - Minimal Tech */
+  ::-webkit-scrollbar {
+    width: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.05);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.1);
   }
 }
 
-/* Custom Scrollbar for Chat - Sleek Design */
-::-webkit-scrollbar {
-  width: 6px;
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)];
+  }
+
+  .message-bubble-in {
+    @apply bg-white text-[#111b21] rounded-[22px] rounded-tl-none shadow-sm border border-[#f0f2f5];
+  }
+
+  .message-bubble-out {
+    @apply bg-[#00a884] text-white rounded-[22px] rounded-tr-none shadow-md shadow-[#00a884]/10;
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #d1d7db;
-  border-radius: 10px;
+.markdown-body {
+  @apply text-[15px] leading-relaxed;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #aab2b7;
+.markdown-body p {
+  @apply mb-2 last:mb-0;
+}
+
+.markdown-body code {
+  @apply bg-black/5 px-1 py-0.5 rounded font-mono text-[0.9em];
 }

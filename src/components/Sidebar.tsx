@@ -3,11 +3,13 @@ import { collection, query, where, onSnapshot, limit, orderBy, doc } from 'fireb
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Chat, User } from '../types';
-import { Search, UserPlus, LogOut, Users, Check, ArrowLeft, ArrowRight, CheckCheck } from 'lucide-react';
+import { Search, UserPlus, LogOut, Users, Check, ArrowLeft, ArrowRight, CheckCheck, Pin, MoreVertical, LayoutGrid, Filter, BellRing } from 'lucide-react';
 import { cn, formatDate, formatLastSeen } from '../lib/utils';
 import { logout } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
 import { motion, AnimatePresence } from 'motion/react';
+import { ProfileView } from './ProfileView';
+import { chatService } from '../services/chatService';
 
 interface SidebarProps {
   onSelectChat: (chatId: string) => void;
@@ -22,6 +24,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('chats');
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'unread' | 'groups'>('all');
   
   // Group creation state
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -64,7 +68,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
 
   const handleCreateGroup = async () => {
     if (!groupName.trim() || selectedUsers.length === 0 || !user) return;
-    const { chatService } = await import('../services/chatService');
     const chatId = await chatService.createGroup(groupName, [...selectedUsers, user.uid]);
     onSelectChat(chatId);
     setViewMode('chats');
@@ -73,55 +76,101 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
   };
 
   return (
-    <div className="flex h-full w-[350px] flex-col border-r border-[#d1d7db] bg-white min-w-[350px]">
-      {/* Header */}
-      <div className="flex h-[60px] items-center justify-between bg-[#f0f2f5] px-4 py-2">
-        <div className="flex items-center space-x-3">
-          <img src={user?.photoURL} alt="Avatar" className="h-10 w-10 rounded-full border border-white shadow-sm" />
+    <div className="flex h-full w-[380px] flex-col border-r border-[#d1d7db]/30 bg-[#fdfdfd] min-w-[380px] z-40">
+      {/* Premium Header */}
+      <div className="flex h-[80px] items-center justify-between px-6 bg-white/80 backdrop-blur-xl border-b border-[#f0f2f5]">
+        <div 
+          className="flex items-center space-x-3 cursor-pointer group"
+          onClick={() => setSelectedProfileUserId(user?.uid || null)}
+        >
+          <div className="relative">
+            <img 
+              src={user?.photoURL} 
+              alt="Avatar" 
+              className="h-12 w-12 rounded-2xl object-cover ring-2 ring-white shadow-lg transition-all group-hover:scale-105" 
+            />
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-[17px] text-[#111b21]">Chatty AI</h1>
+            <p className="text-[11px] text-[#667781] font-bold uppercase tracking-wider">Productivity Hub</p>
+          </div>
         </div>
-        <div className="flex space-x-6 text-[#54656f]">
-          <button onClick={() => setViewMode(viewMode === 'chats' ? 'users' : 'chats')} className="transition-colors hover:text-[#00a884]" title="New Chat">
-            <UserPlus className="h-6 w-6" />
-          </button>
-          <button onClick={() => setViewMode('new-group-select')} className="transition-colors hover:text-[#00a884]" title="New Group">
-            <Users className="h-6 w-6" />
-          </button>
-          <button onClick={logout} title="Logout" className="transition-colors hover:text-red-500">
-            <LogOut className="h-6 w-6" />
-          </button>
+        <div className="flex items-center space-x-4 text-[#54656f]">
+          <motion.button 
+            whileHover={{ scale: 1.1 }} 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setViewMode(viewMode === 'chats' ? 'users' : 'chats')} 
+            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+          >
+            <UserPlus className="h-5 w-5" />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.1 }} 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setViewMode('new-group-select')} 
+            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+          >
+            <Users className="h-5 w-5" />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05 }} 
+            whileTap={{ scale: 0.95 }}
+            onClick={logout} 
+            className="p-2 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
+          >
+            <LogOut className="h-5 w-5" />
+          </motion.button>
         </div>
       </div>
 
-      {/* Conditional Search / Header for Sub-views */}
-      {viewMode === 'chats' || viewMode === 'users' || viewMode === 'new-group-select' ? (
-        <div className="px-3 py-2 bg-white border-b border-[#f0f2f5]">
-          <div className={cn(
-            "relative flex items-center rounded-xl bg-[#f0f2f5] px-4 py-2 transition-all duration-300 ease-in-out",
-            "focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00a884]/20 focus-within:shadow-[0_2px_8px_rgba(0,168,132,0.1)]"
-          )}>
-            {viewMode !== 'chats' ? (
-               <button 
-                 onClick={() => setViewMode('chats')} 
-                 className="mr-3 text-[#54656f] hover:text-[#00a884] transition-colors"
-               >
-                 <ArrowLeft className="h-5 w-5" />
-               </button>
-            ) : (
-               <Search className="mr-3 h-[18px] w-[18px] text-[#54656f] transition-transform duration-300 group-focus-within:scale-110" />
-            )}
-            <input
-              type="text"
-              placeholder={viewMode === 'chats' ? "Search or start new chat" : "Search users..."}
-              className="w-full bg-transparent text-[15px] text-[#111b21] outline-none placeholder:text-[#667781] font-medium"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      {/* Modern Search & Filters */}
+      <div className="px-6 py-4 space-y-4 bg-white/50 border-b border-[#f0f2f5]">
+        <div className={cn(
+          "relative flex items-center rounded-2xl bg-gray-100/50 px-4 py-3 transition-all duration-300",
+          "focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-xl"
+        )}>
+          {viewMode !== 'chats' ? (
+             <button 
+               onClick={() => setViewMode('chats')} 
+               className="mr-3 text-[#54656f] hover:text-emerald-500 transition-colors"
+             >
+               <ArrowLeft className="h-5 w-5" />
+             </button>
+          ) : (
+             <Search className="mr-3 h-[18px] w-[18px] text-[#54656f]" />
+          )}
+          <input
+            type="text"
+            placeholder={viewMode === 'chats' ? "Search conversations..." : "Search people..."}
+            className="w-full bg-transparent text-[14px] text-[#111b21] outline-none placeholder:text-[#667781] font-medium"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      ) : null}
+
+        {viewMode === 'chats' && (
+          <div className="flex items-center space-x-2">
+            {(['all', 'unread', 'groups'] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-[12px] font-bold tracking-tight capitalize transition-all",
+                  activeFilter === filter 
+                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" 
+                    : "bg-gray-100 text-[#667781] hover:bg-gray-200"
+                )}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         {viewMode === 'users' && (
            <div className="divide-y divide-[#f5f6f6]">
              <div className="px-4 py-2 text-[12px] font-semibold text-[#667781] uppercase tracking-wider bg-[#f0f2f5]">All Users</div>
@@ -129,14 +178,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
                <div 
                  key={u.uid} 
                  onClick={async () => {
-                    const { chatService } = await import('../services/chatService');
                     const chatId = await chatService.getOrCreateChat(user!.uid, u.uid);
                     onSelectChat(chatId);
                     setViewMode('chats');
                  }}
                  className="flex cursor-pointer items-center px-3 py-3 transition-colors hover:bg-[#f5f6f6]"
                >
-                 <div className="relative mr-3 flex-shrink-0">
+                 <div 
+                   className="relative mr-3 flex-shrink-0"
+                   onClick={(e) => {
+                     e.stopPropagation();
+                     setSelectedProfileUserId(u.uid);
+                   }}
+                 >
                    <img src={u.photoURL} alt="" className="h-12 w-12 rounded-full object-cover shadow-sm" />
                    {u.isOnline && (
                      <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#06cf9c]" />
@@ -231,47 +285,91 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
         )}
 
         {viewMode === 'chats' && (
-          <div className="divide-y divide-[#f5f6f6]">
-            <AnimatePresence mode="popLayout" initial={false}>
-              {chats
-                .filter(c => 
-                  c.type === 'group' 
-                    ? c.name?.toLowerCase().includes(search.toLowerCase()) 
-                    : true
-                )
-                .sort((a, b) => {
-                  const timeA = a.lastMessage?.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
-                  const timeB = b.lastMessage?.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
-                  return timeB - timeA;
-                })
-                .map((chat) => (
-                  <motion.div
-                    key={chat.chatId}
-                    layout
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ 
-                      duration: 0.2,
-                      layout: { duration: 0.25, ease: "easeOut" }
-                    }}
-                  >
-                    <ChatItem 
-                      chat={chat} 
-                      active={selectedChatId === chat.chatId}
-                      onClick={() => onSelectChat(chat.chatId)}
-                    />
-                  </motion.div>
-                ))}
-            </AnimatePresence>
+          <div className="pb-10">
+            {/* Pinned Section */}
+            {chats.some(c => c.pinnedMessages && c.pinnedMessages.length > 0) && (
+               <div className="mt-4">
+                 <div className="px-6 py-2 flex items-center text-[10px] font-bold text-[#667781] uppercase tracking-[0.2em]">
+                   <Pin className="h-3 w-3 mr-2 text-emerald-500" />
+                   Pinned Conversations
+                 </div>
+                 <div className="space-y-0.5">
+                   {chats
+                    .filter(c => c.pinnedMessages && c.pinnedMessages.length > 0)
+                    .map((chat) => (
+                      <ChatItem 
+                        key={chat.chatId} 
+                        chat={chat} 
+                        active={selectedChatId === chat.chatId}
+                        onClick={() => onSelectChat(chat.chatId)}
+                        onViewProfile={(uid) => setSelectedProfileUserId(uid)}
+                      />
+                    ))}
+                 </div>
+               </div>
+            )}
+
+            <div className="mt-4">
+              <div className="px-6 py-2 flex items-center text-[10px] font-bold text-[#667781] uppercase tracking-[0.2em]">
+                Recent Chats
+              </div>
+              <AnimatePresence mode="popLayout" initial={false}>
+                {chats
+                  .filter(c => {
+                    const matchesSearch = c.type === 'group' ? c.name?.toLowerCase().includes(search.toLowerCase()) : true;
+                    if (!matchesSearch) return false;
+                    
+                    if (activeFilter === 'unread') return (c.unreadCount?.[user?.uid || ''] || 0) > 0;
+                    if (activeFilter === 'groups') return c.type === 'group';
+                    return true;
+                  })
+                  .sort((a, b) => {
+                    const timeA = a.lastMessage?.timestamp?.toMillis?.() || a.createdAt?.toMillis?.() || 0;
+                    const timeB = b.lastMessage?.timestamp?.toMillis?.() || b.createdAt?.toMillis?.() || 0;
+                    return timeB - timeA;
+                  })
+                  .map((chat) => (
+                    <motion.div
+                      key={chat.chatId}
+                      layout
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChatItem 
+                        chat={chat} 
+                        active={selectedChatId === chat.chatId}
+                        onClick={() => onSelectChat(chat.chatId)}
+                        onViewProfile={(uid) => setSelectedProfileUserId(uid)}
+                      />
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
+            </div>
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {selectedProfileUserId && (
+          <ProfileView 
+            userId={selectedProfileUserId} 
+            isCurrentUser={selectedProfileUserId === user?.uid}
+            onClose={() => setSelectedProfileUserId(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-const ChatItem: React.FC<{ chat: Chat; active: boolean; onClick: () => void }> = ({ chat, active, onClick }) => {
+const ChatItem: React.FC<{ 
+  chat: Chat; 
+  active: boolean; 
+  onClick: () => void;
+  onViewProfile: (uid: string) => void;
+}> = ({ chat, active, onClick, onViewProfile }) => {
   const { user } = useAuth();
   const [partner, setPartner] = useState<User | null>(null);
 
@@ -296,53 +394,73 @@ const ChatItem: React.FC<{ chat: Chat; active: boolean; onClick: () => void }> =
     <div 
       onClick={onClick}
       className={cn(
-        "flex cursor-pointer items-center px-3 py-3 transition-all duration-200 border-l-4 border-transparent hover:bg-[#f5f6f6]",
-        active && "bg-[#f0f2f5] hover:bg-[#f0f2f5] border-[#00a884]"
+        "flex cursor-pointer items-center px-6 py-4 transition-all duration-300 relative group",
+        active ? "bg-emerald-500/5 ring-1 ring-emerald-500/10" : "hover:bg-gray-50"
       )}
     >
-      <div className="relative mr-3 flex-shrink-0">
-        <img src={photo || 'https://ui-avatars.com/api/?name=?'} alt="" className="h-12 w-12 rounded-full object-cover shadow-sm" />
+      {active && (
+        <motion.div 
+          layoutId="active-indicator"
+          className="absolute left-0 w-1 h-1/2 bg-emerald-500 rounded-r-full"
+        />
+      )}
+      <div 
+        className="relative mr-4 flex-shrink-0"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (chat.type === 'one-to-one' && partner) {
+             onViewProfile(partner.uid);
+          }
+        }}
+      >
+        <img 
+          src={photo || 'https://ui-avatars.com/api/?name=?'} 
+          alt="" 
+          className={cn(
+            "h-[54px] w-[54px] rounded-2xl object-cover transition-all duration-300 shadow-sm",
+            active ? "scale-105" : "group-hover:scale-105"
+          )} 
+        />
         {partner?.isOnline && (
-          <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#06cf9c]" />
+          <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+        )}
+        {(chat.unreadCount?.[user?.uid || ''] || 0) > 0 && !active && (
+          <div className="absolute -top-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse shadow-sm" />
         )}
       </div>
       <div className="flex-1 overflow-hidden">
-        <div className="flex items-center justify-between mb-0.5">
+        <div className="flex items-center justify-between mb-1">
           <h3 className={cn(
-            "truncate font-medium text-[#111b21]",
-            (chat.unreadCount?.[user?.uid || ''] || 0) > 0 && "font-bold"
+            "truncate text-[15px] tracking-tight font-display",
+            (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "font-bold text-[#111b21]" : "font-semibold text-[#111b21]"
           )}>{name || 'Loading...'}</h3>
           {chat.lastMessage?.timestamp && (
             <span className={cn(
-              "text-[12px] whitespace-nowrap ml-2", 
-              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-[#00a884] font-semibold" : "text-[#667781]"
+              "text-[10px] font-bold tracking-tighter ml-2 uppercase", 
+              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-emerald-500" : "text-[#667781]/60"
             )}>
               {formatDate(chat.lastMessage.timestamp)}
             </span>
           )}
         </div>
-        <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-1 flex-1 overflow-hidden mr-2">
+        <div className="flex justify-between items-center whitespace-nowrap">
+          <div className="flex items-center space-x-1.5 flex-1 overflow-hidden mr-3">
             {chat.lastMessage?.senderId === user?.uid && (
-              <span className="flex-shrink-0">
+              <span className="flex-shrink-0 opacity-60">
                 {chat.lastMessage.status === 'read' ? (
-                  <CheckCheck className="h-4 w-4 text-[#53bdeb]" />
-                ) : chat.lastMessage.status === 'delivered' ? (
-                  <CheckCheck className="h-4 w-4 text-[#8696a0]" />
-                ) : (
-                  <Check className="h-4 w-4 text-[#8696a0]" />
-                )}
+                  <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
+                ) : <Check className="h-3.5 w-3.5" />}
               </span>
             )}
             <p className={cn(
-              "truncate text-sm",
-              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-[#111b21] font-medium" : "text-[#667781]"
+              "truncate text-[13px] leading-tight",
+              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-[#111b21] font-bold" : "text-[#667781]"
             )}>
               {chat.lastMessage?.text || 'No messages yet'}
             </p>
           </div>
           {(chat.unreadCount?.[user?.uid || ''] || 0) > 0 && (
-            <span className="bg-[#00a884] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] h-5 flex items-center justify-center animate-in zoom-in-50 duration-300">
+            <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-lg shadow-emerald-500/20">
               {chat.unreadCount![user!.uid]}
             </span>
           )}

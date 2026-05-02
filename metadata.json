@@ -1,6 +1,6 @@
 {
-  "name": "Echo Chat",
-  "description": "A production-ready real-time chat application with group messaging, status indicators, and media sharing.",
+  "name": "Chatty AI",
+  "description": "A premium AI-powered messenger with smart replies, chat summarization, message threading, reactions, and productivity task conversion.",
   "requestFramePermissions": [
     "camera",
     "microphone"
