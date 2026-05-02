@@ -1,0 +1,9 @@
+{
+  "name": "Echo Chat",
+  "description": "A production-ready real-time chat application with group messaging, status indicators, and media sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": []
+}

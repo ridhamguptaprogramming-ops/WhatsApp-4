@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and presence status.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "isOnline": { "type": "boolean" },
+        "statusMessage": { "type": "string" },
+        "fcmTokens": { 
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Chat": {
+      "title": "Chat Discussion",
+      "description": "A conversation between two or more users.",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "participants": { 
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "type": { "type": "string", "enum": ["one-to-one", "group"] },
+        "name": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastMessage": { 
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "senderId": { "type": "string" },
+            "timestamp": { "type": "string", "format": "date-time" }
+          }
+        },
+        "unreadCount": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "participants", "type", "createdAt"]
+    },
+    "Message": {
+      "title": "Message Content",
+      "description": "Individual message sent in a chat.",
+      "type": "object",
+      "properties": {
+        "messageId": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "video", "file"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"] },
+        "mediaUrl": { "type": "string" }
+      },
+      "required": ["messageId", "chatId", "senderId", "timestamp", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Public and private user profile data."
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat metadata and summary."
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Message history for a specific chat."
+    },
+    "/chats/{chatId}/typing/{userId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "isTyping": { "type": "boolean" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "Transient typing indicators."
+    }
+  }
+}

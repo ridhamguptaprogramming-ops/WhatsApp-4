@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // Helper to check if a user is a participant of a chat
+    function isParticipantOfChat(chatId) {
+      return isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+    }
+
+    // --- User Rules ---
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.uid is string && data.uid.size() <= 128 &&
+               data.displayName is string && data.displayName.size() <= 100 &&
+               data.email is string && data.email.size() <= 100 &&
+               data.isOnline is bool &&
+               (data.get('statusMessage', '') is string && data.get('statusMessage', '').size() <= 500) &&
+               (data.get('fcmTokens', []) is list);
+      }
+
+      function hasRequiredUserFields(data) {
+        return data.keys().hasAll(['uid', 'displayName', 'email', 'isOnline', 'lastSeen']);
+      }
+
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn(); // Allow listing users to find contacts
+
+      allow create: if isOwner(userId) && hasRequiredUserFields(incoming()) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'isOnline', 'lastSeen', 'statusMessage', 'fcmTokens']);
+    }
+
+    // --- Chat Rules ---
+    match /chats/{chatId} {
+      function isParticipant() {
+        return isSignedIn() && (request.auth.uid in resource.data.participants);
+      }
+      
+      function isValidChat(data) {
+        return data.participants is list &&
+               data.participants.size() >= 2 && data.participants.size() <= 100 &&
+               data.type in ['one-to-one', 'group'];
+      }
+
+      function hasRequiredChatFields(data) {
+        return data.keys().hasAll(['chatId', 'participants', 'type', 'createdAt']);
+      }
+
+      allow get: if isSignedIn() && isParticipant();
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
+      
+      allow create: if isSignedIn() && hasRequiredChatFields(incoming()) && isValidChat(incoming()) && (request.auth.uid in incoming().participants);
+      allow update: if isParticipant() && 
+                    incoming().diff(existing()).affectedKeys().hasAny(['lastMessage', 'photoURL', 'name', 'unreadCount', 'chatId']);
+
+      // --- Message Rules ---
+      match /messages/{messageId} {
+        function isValidMessage(data) {
+          return data.senderId == request.auth.uid &&
+                 data.chatId == chatId &&
+                 data.type in ['text', 'image', 'video', 'file'] &&
+                 data.status in ['sent', 'delivered', 'read'] &&
+                 (data.get('mediaUrl', '') is string && data.get('mediaUrl', '').size() <= 1000);
+        }
+
+        function hasRequiredMessageFields(data) {
+          return data.keys().hasAll(['messageId', 'chatId', 'senderId', 'timestamp', 'status', 'type']);
+        }
+
+        allow get, list: if isParticipantOfChat(chatId);
+        allow create: if isParticipantOfChat(chatId) && hasRequiredMessageFields(incoming()) && isValidMessage(incoming());
+        allow update: if isParticipantOfChat(chatId) && 
+                      incoming().diff(existing()).affectedKeys().hasAny(['status', 'messageId']);
+      }
+
+      // --- Typing Rules ---
+      match /typing/{userId} {
+        allow read: if isParticipantOfChat(chatId);
+        allow write: if isOwner(userId);
+      }
+    }
+  }
+}
