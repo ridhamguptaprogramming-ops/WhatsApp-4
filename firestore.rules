@@ -8,7 +8,10 @@ service cloud.firestore {
     }
 
     // --- Helpers ---
-    function isSignedIn() { return request.auth != null; }
+    function isSignedIn() { 
+      return request.auth != null && 
+             (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'anonymous'); 
+    }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
@@ -26,7 +29,11 @@ service cloud.firestore {
                data.displayName is string && data.displayName.size() <= 100 &&
                data.email is string && data.email.size() <= 100 &&
                data.isOnline is bool &&
+               (data.get('username', '') is string && data.get('username', '').size() <= 50) &&
+               (data.get('bio', '') is string && data.get('bio', '').size() <= 1000) &&
                (data.get('statusMessage', '') is string && data.get('statusMessage', '').size() <= 500) &&
+               (data.get('statusEmoji', '') is string && data.get('statusEmoji', '').size() <= 10) &&
+               (data.get('availability', 'online') in ['online', 'busy', 'away', 'offline']) &&
                (data.get('fcmTokens', []) is list);
       }
 
@@ -39,7 +46,14 @@ service cloud.firestore {
 
       allow create: if isOwner(userId) && hasRequiredUserFields(incoming()) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'isOnline', 'lastSeen', 'statusMessage', 'fcmTokens']);
+                    incoming().diff(existing()).affectedKeys().hasAny(['displayName', 'photoURL', 'bannerURL', 'isOnline', 'lastSeen', 'statusMessage', 'fcmTokens', 'username', 'bio', 'statusEmoji', 'availability', 'socialLinks', 'interests', 'privacySettings']);
+    }
+
+    // --- Username Rules ---
+    match /usernames/{username} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn() && incoming().uid == request.auth.uid && username.size() <= 50;
+      allow delete: if isSignedIn() && existing().uid == request.auth.uid;
     }
 
     // --- Chat Rules ---
@@ -109,6 +123,59 @@ service cloud.firestore {
         allow read, list: if isParticipantOfChat(chatId);
         allow create: if isParticipantOfChat(chatId) && hasRequiredStrokeFields(incoming()) && isValidStroke(incoming());
         allow delete: if isParticipantOfChat(chatId); // Allow anyone in chat to clear or delete a stroke for collaboration
+      }
+    }
+
+    // --- Call Rules ---
+    match /calls/{callId} {
+      function isCallParticipant() {
+        return isSignedIn() && (request.auth.uid in resource.data.participants);
+      }
+
+      function isValidCallSchema(data) {
+        return data.participants is list &&
+               data.participants.size() >= 2 &&
+               data.participants.size() <= 20 &&
+               data.type in ['audio', 'video'] &&
+               data.status in ['ringing', 'connected', 'ended', 'missed', 'rejected'] &&
+               data.isGroup is bool &&
+               (data.startTime == request.time || data.startTime is timestamp);
+      }
+
+      function hasRequiredCallFields(data) {
+        return data.keys().hasAll(['callId', 'hostId', 'participants', 'type', 'status', 'startTime', 'isGroup']);
+      }
+
+      allow get: if isSignedIn() && isValidId(callId) && (request.auth.uid in resource.data.participants);
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
+      
+      allow create: if isSignedIn() && 
+                    hasRequiredCallFields(incoming()) && 
+                    isValidCallSchema(incoming()) && 
+                    incoming().callId == callId &&
+                    incoming().hostId == request.auth.uid &&
+                    (request.auth.uid in incoming().participants);
+
+      allow update: if isCallParticipant() && 
+                    isValidCallSchema(incoming()) && (
+                      // Transition Action: Change status
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status', 'endTime', 'duration', 'summary', 'callId'])
+                    );
+
+      // --- Signaling Rules ---
+      match /signaling/{signalId} {
+        function isValidSignal(data) {
+          return data.from == request.auth.uid &&
+                 data.to is string &&
+                 data.type in ['offer', 'answer', 'candidate'] &&
+                 data.payload is string &&
+                 data.payload.size() <= 65536 &&
+                 (data.timestamp == request.time || data.timestamp is timestamp);
+        }
+
+        allow read, list: if isSignedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+        allow create: if isSignedIn() && isValidSignal(incoming()) && 
+                      (request.auth.uid in get(/databases/$(database)/documents/calls/$(callId)).data.participants);
       }
     }
   }

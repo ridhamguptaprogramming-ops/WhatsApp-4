@@ -18,6 +18,17 @@ export default defineConfig(({mode}) => {
     build: {
       outDir: 'dist',
       sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom'],
+            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+            'vendor-three': ['three', '@react-three/fiber', '@react-three/drei'],
+            'vendor-recharts': ['recharts'],
+            'vendor-utils': ['lucide-react', 'motion', 'date-fns']
+          }
+        }
+      }
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

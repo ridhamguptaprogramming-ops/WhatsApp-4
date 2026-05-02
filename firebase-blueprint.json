@@ -2,7 +2,7 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "User account information and presence status.",
+      "description": "User account information, presence, and social profile.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -11,10 +11,28 @@
         "email": { "type": "string", "format": "email" },
         "lastSeen": { "type": "string", "format": "date-time" },
         "isOnline": { "type": "boolean" },
+        "username": { "type": "string" },
+        "bio": { "type": "string" },
+        "bannerURL": { "type": "string" },
         "statusMessage": { "type": "string" },
-        "fcmTokens": { 
-          "type": "array",
-          "items": { "type": "string" }
+        "statusEmoji": { "type": "string" },
+        "availability": { "type": "string", "enum": ["online", "busy", "away", "offline"] },
+        "socialLinks": {
+          "type": "object",
+          "properties": {
+            "github": { "type": "string" },
+            "twitter": { "type": "string" },
+            "website": { "type": "string" }
+          }
+        },
+        "interests": { "type": "array", "items": { "type": "string" } },
+        "privacySettings": {
+          "type": "object",
+          "properties": {
+            "showPhoto": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+            "showLastSeen": { "type": "boolean" },
+            "allowDirectMessages": { "type": "boolean" }
+          }
         }
       },
       "required": ["uid", "displayName", "email"]
@@ -81,12 +99,40 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["strokeId", "chatId", "senderId", "points", "color", "width", "timestamp"]
+    },
+    "CallSession": {
+      "title": "Voice/Video Call Session",
+      "description": "Metadata for an active or completed call.",
+      "type": "object",
+      "properties": {
+        "callId": { "type": "string" },
+        "hostId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "type": { "type": "string", "enum": ["audio", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "connected", "ended", "missed", "rejected"] },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "duration": { "type": "integer" },
+        "isGroup": { "type": "boolean" },
+        "chatId": { "type": "string" },
+        "summary": { "type": "string" }
+      },
+      "required": ["callId", "hostId", "participants", "type", "status", "startTime"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
       "description": "Public and private user profile data."
+    },
+    "/usernames/{username}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "uid": { "type": "string" }
+        }
+      },
+      "description": "Index for ensuring unique usernames."
     },
     "/chats/{chatId}": {
       "schema": "Chat",
@@ -109,6 +155,23 @@
         }
       },
       "description": "Transient typing indicators."
+    },
+    "/calls/{callId}": {
+      "schema": "CallSession",
+      "description": "Historical and active call records."
+    },
+    "/calls/{callId}/signaling/{signalId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string", "enum": ["offer", "answer", "candidate"] },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "payload": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        }
+      },
+      "description": "WebRTC signaling messages."
     }
   }
 }

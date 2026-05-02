@@ -9,10 +9,13 @@ import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { EmptyState } from './components/EmptyState';
+import { CallingProvider } from './context/CallingContext';
+import { CallInsights } from './components/CallInsights';
 
 function ChatApp() {
   const { user, loading } = useAuth();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'chats' | 'insights'>('chats');
 
   if (loading) {
     return (
@@ -34,9 +37,18 @@ function ChatApp() {
       <div className="flex h-full w-full overflow-hidden rounded-none shadow-2xl bg-white lg:rounded-lg">
         <Sidebar 
           selectedChatId={selectedChatId} 
-          onSelectChat={(id) => setSelectedChatId(id)} 
+          onSelectChat={(id) => {
+            setSelectedChatId(id);
+            setViewMode('chats');
+          }} 
+          onViewInsights={() => {
+            setViewMode('insights');
+            setSelectedChatId(null);
+          }}
         />
-        {selectedChatId ? (
+        {viewMode === 'insights' ? (
+          <CallInsights />
+        ) : selectedChatId ? (
           <ChatWindow chatId={selectedChatId} />
         ) : (
           <EmptyState />
@@ -49,7 +61,9 @@ function ChatApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <ChatApp />
+      <CallingProvider>
+        <ChatApp />
+      </CallingProvider>
     </AuthProvider>
   );
 }

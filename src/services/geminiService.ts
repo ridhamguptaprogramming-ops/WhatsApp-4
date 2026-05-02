@@ -87,5 +87,39 @@ export const geminiService = {
     } catch (error) {
       return { title: messageText, category: 'General' };
     }
+  },
+
+  async improveWriting(text: string, tone: 'professional' | 'friendly' | 'concise' | 'humorous' = 'friendly'): Promise<string> {
+    if (!process.env.GEMINI_API_KEY || !text) return text;
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Rewrite the following chat message to be more ${tone}. 
+        
+        Message: ${text}
+        
+        Return ONLY the rewritten message text.`,
+      });
+      return response.text || text;
+    } catch (error) {
+      return text;
+    }
+  },
+
+  async transcribeAudio(audioBase64: string): Promise<string> {
+    if (!process.env.GEMINI_API_KEY) return "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          { text: "Transcribe the following audio precisely. If there is no speech, return an empty string." },
+          { inlineData: { data: audioBase64, mimeType: "audio/webm" } }
+        ]
+      });
+      return response.text || "";
+    } catch (error) {
+      console.error("Transcription error:", error);
+      return "";
+    }
   }
 };

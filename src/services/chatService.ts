@@ -87,23 +87,11 @@ export const chatService = {
     const docRef = await addDoc(messagesRef, newMessage);
     await updateDoc(docRef, { messageId: docRef.id });
 
-    // Update chat head and increment unread counts for others
+    // Update chat head
     const chatRef = doc(db, 'chats', chatId);
-    const chatDoc = await getDocFromServer(chatRef);
-    const data = chatDoc.data();
-    const participants = data?.participants as string[];
-    
-    const unreadUpdate: any = {};
-    participants.forEach(p => {
-      if (p !== senderId) {
-        unreadUpdate[`unreadCount.${p}`] = (data?.unreadCount?.[p] || 0) + 1;
-      }
-    });
-
     const lastMessageText = type === 'text' ? text : `[${type.charAt(0).toUpperCase() + type.slice(1)}]`;
-
+    
     await updateDoc(chatRef, {
-      ...unreadUpdate,
       lastMessage: {
         text: lastMessageText,
         senderId,
@@ -111,16 +99,39 @@ export const chatService = {
         status: 'sent'
       }
     });
+
+    return docRef.id;
+  },
+
+  async editMessage(chatId: string, messageId: string, newText: string) {
+    const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+    await updateDoc(messageRef, {
+      text: newText,
+      isEdited: true,
+      updatedAt: serverTimestamp()
+    });
+  },
+
+  async deleteMessage(chatId: string, messageId: string) {
+    const messageRef = doc(db, 'chats', chatId, 'messages', messageId);
+    await updateDoc(messageRef, {
+      text: 'This message was deleted',
+      isDeleted: true,
+      type: 'system'
+    });
   },
 
   async sendMediaMessage(
     chatId: string, 
     senderId: string, 
-    file: File, 
-    onProgress?: (progress: number) => void
+    file: File | Blob, 
+    onProgress?: (progress: number) => void,
+    audioDuration?: number
   ) {
-    const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
-    const storageRef = ref(storage, `chats/${chatId}/${Date.now()}_${file.name}`);
+    const isAudio = file instanceof Blob && file.type.startsWith('audio/');
+    const type = isAudio ? 'audio' : file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'file';
+    const fileName = file instanceof File ? file.name : `audio_${Date.now()}.webm`;
+    const storageRef = ref(storage, `chats/${chatId}/${Date.now()}_${fileName}`);
     
     const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -130,14 +141,32 @@ export const chatService = {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) onProgress(progress);
         }, 
-        (error) => {
-          console.error("Storage upload error:", error);
-          reject(error);
-        }, 
+        reject, 
         async () => {
           try {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            await this.sendMessage(chatId, senderId, '', type, downloadURL);
+            const messagesRef = collection(db, 'chats', chatId, 'messages');
+            const newMessage: any = {
+              messageId: '',
+              chatId,
+              senderId,
+              text: '',
+              type,
+              mediaUrl: downloadURL,
+              timestamp: serverTimestamp(),
+              status: 'sent',
+              metadata: {
+                fileName,
+                fileSize: file.size
+              }
+            };
+
+            if (isAudio && audioDuration) {
+              newMessage.audioDuration = audioDuration;
+            }
+
+            const docRef = await addDoc(messagesRef, newMessage);
+            await updateDoc(docRef, { messageId: docRef.id });
             resolve();
           } catch (error) {
             reject(error);

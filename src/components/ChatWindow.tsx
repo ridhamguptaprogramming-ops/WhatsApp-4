@@ -14,6 +14,10 @@ import { motion, AnimatePresence } from 'motion/react';
 
 import { useInView } from 'react-intersection-observer';
 
+import { ChatInput } from './ChatInput';
+import { Play, Pause, Volume2, Pencil, Trash2, Phone, Video } from 'lucide-react';
+import { useCalling } from '../context/CallingContext';
+
 interface ChatWindowProps {
   chatId: string;
 }
@@ -51,7 +55,12 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
   };
 
   const renderMedia = () => {
-    if (!msg.mediaUrl) return null;
+    if (msg.isDeleted) return null;
+    if (!msg.mediaUrl && msg.type !== 'text') return null;
+
+    if (msg.type === 'audio') {
+      return <AudioMessage url={msg.mediaUrl!} duration={msg.audioDuration} isMe={isMe} />;
+    }
 
     if (msg.type === 'image') {
       return (
@@ -87,14 +96,18 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
           rel="noopener noreferrer"
           className="flex items-center space-x-3 rounded-xl bg-black/5 p-4 hover:bg-black/10 transition-colors mb-2 border border-black/5"
         >
-          <div className="rounded-full bg-emerald-500/10 p-2.5 text-emerald-600">
+          <div className={cn("rounded-full p-2.5", isMe ? "bg-emerald-500/20 text-emerald-100" : "bg-emerald-500/10 text-emerald-600")}>
             <FileIcon className="h-5 w-5" />
           </div>
-          <div className="flex-1 overflow-hidden">
-            <p className="truncate text-sm font-semibold text-[#111b21]">File Attachment</p>
-            <p className="text-xs text-[#667781]">Click to view/download</p>
+          <div className="flex-1 overflow-hidden text-left">
+            <p className={cn("truncate text-sm font-bold", isMe ? "text-white" : "text-[#111b21]")}>
+              {msg.metadata?.fileName || 'File Attachment'}
+            </p>
+            <p className={cn("text-[10px] opacity-70", isMe ? "text-emerald-50" : "text-[#667781]")}>
+              {msg.metadata?.fileSize ? `${(msg.metadata.fileSize / 1024 / 1024).toFixed(2)} MB` : 'Click to view'}
+            </p>
           </div>
-          <Download className="h-4 w-4 text-[#54656f]" />
+          <Download className={cn("h-4 w-4", isMe ? "text-white" : "text-[#54656f]")} />
         </a>
       );
     }
@@ -103,6 +116,16 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
   };
 
   const isMe = msg.senderId === user?.uid;
+
+  if (msg.isDeleted) {
+    return (
+      <div className={cn("flex flex-col mb-1", isMe ? "items-end" : "items-start")}>
+        <div className="px-4 py-2 bg-gray-100 rounded-2xl text-[10px] font-bold text-gray-400 uppercase tracking-widest border border-dashed border-gray-300">
+          This message was deleted
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -113,7 +136,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
       )}
     >
       <div className={cn(
-        "relative max-w-[85%] sm:max-w-[70%] p-1.5 transition-all",
+        "relative max-w-[90%] sm:max-w-[75%] p-1.5 transition-all",
         isMe ? "items-end" : "items-start"
       )}>
         {/* Reply Quote */}
@@ -141,6 +164,10 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
             <div className="markdown-body">
               <p className="whitespace-pre-wrap break-words">{msg.text}</p>
             </div>
+          )}
+
+          {msg.isEdited && (
+            <div className="text-[10px] italic opacity-50 text-right mt-0.5">Edited</div>
           )}
 
           {msg.isPinned && (
@@ -236,14 +263,107 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
           >
             <Pin className="h-4 w-4" />
           </button>
+          {isMe && (
+            <>
+              <button 
+                onClick={() => {
+                  const newText = prompt("Edit message:", msg.text);
+                  if (newText && chat?.chatId) chatService.editMessage(chat.chatId, msg.messageId, newText);
+                }}
+                className="p-1.5 bg-white rounded-full shadow-md hover:bg-emerald-50 text-emerald-600 active:scale-90 transition-transform"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirm("Delete this message?") && chat?.chatId) chatService.deleteMessage(chat.chatId, msg.messageId);
+                }}
+                className="p-1.5 bg-white rounded-full shadow-md hover:bg-rose-50 text-rose-600 active:scale-90 transition-transform"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
+const AudioMessage: React.FC<{ url: string; duration?: number; isMe: boolean }> = ({ url, duration, isMe }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      const p = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+      setProgress(p);
+    }
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setProgress(0);
+  };
+
+  return (
+    <div className={cn("flex items-center space-x-4 min-w-[200px] py-1", isMe ? "text-white" : "text-[#111b21]")}>
+      <button 
+        onClick={togglePlay}
+        className={cn(
+          "h-10 w-10 rounded-full flex items-center justify-center transition-all active:scale-90 shadow-md",
+          isMe ? "bg-white text-emerald-600" : "bg-emerald-500 text-white"
+        )}
+      >
+        {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+      </button>
+      
+      <div className="flex-1 flex flex-col space-y-1">
+        <div className="flex items-center space-x-0.5 h-6">
+          {[...Array(20)].map((_, i) => (
+            <div 
+              key={i} 
+              className={cn(
+                "w-1 rounded-full bg-current transition-all",
+                progress > (i * 5) ? "opacity-100" : "opacity-30"
+              )}
+              style={{ height: `${20 + Math.sin(i * 0.5) * 40}%` }}
+            />
+          ))}
+        </div>
+        <div className="flex justify-between text-[10px] font-bold opacity-70">
+           <span>{duration ? `${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}` : 'Voice Note'}</span>
+           <Volume2 className="h-3 w-3" />
+        </div>
+      </div>
+      
+      <audio 
+        ref={audioRef} 
+        src={url} 
+        onTimeUpdate={handleTimeUpdate} 
+        onEnded={handleEnded}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+      />
+    </div>
+  );
+};
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
   const { user } = useAuth();
+  const { startCall } = useCalling();
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [partner, setPartner] = useState<User | null>(null);
@@ -290,10 +410,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
 
     // Listen to typing status
     const unsubTyping = onSnapshot(collection(db, 'chats', chatId, 'typing'), (snapshot) => {
-      const active = snapshot.docs
-        .map(doc => doc.data() as { isTyping: boolean, updatedAt: any })
-        .filter(d => d.isTyping && d.updatedAt?.toDate() > Date.now() - 5000); // 5 sec threshold
-      // Simplified: list of userIds who are typing
+      const activeIds = snapshot.docs
+        .filter(doc => {
+          const d = doc.data();
+          return d.isTyping && d.updatedAt?.toDate() > Date.now() - 5000 && doc.id !== user.uid;
+        })
+        .map(doc => doc.id);
+      setTyping(activeIds);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `chats/${chatId}/typing`);
     });
@@ -446,7 +569,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
         <div className="ml-4 flex-1">
           <h2 className="font-semibold text-[16.5px] text-[#111b21] tracking-tight">{chat?.type === 'group' ? chat.name : partner?.displayName}</h2>
           <p className="text-[12px] text-[#667781] font-medium flex items-center">
-            {chat?.type === 'group' ? (
+            {typing.length > 0 ? (
+               <span className="text-[#00a884] flex items-center italic animate-pulse">
+                 typing...
+               </span>
+            ) : chat?.type === 'group' ? (
               <span className="flex items-center text-[#54656f]">
                 <Users className="h-3 w-3 mr-1" />
                 {chat.participants.length} participants
@@ -462,6 +589,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
           </p>
         </div>
         <div className="flex space-x-5 text-[#54656f]" onClick={(e) => e.stopPropagation()}>
+          <motion.button 
+            whileHover={{ scale: 1.1, color: '#00a884' }} 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => partner && startCall([partner.uid], 'video', chat?.type === 'group', chatId)}
+            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            title="Video Call"
+          >
+            <Video className="h-5 w-5" />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.1, color: '#00a884' }} 
+            whileTap={{ scale: 0.9 }}
+            onClick={() => partner && startCall([partner.uid], 'audio', chat?.type === 'group', chatId)}
+            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            title="Audio Call"
+          >
+            <Phone className="h-5 w-5" />
+          </motion.button>
           <motion.button 
             whileHover={{ scale: 1.1, color: '#00a884' }} 
             whileTap={{ scale: 0.9 }}
@@ -533,175 +678,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
         </div>
       </div>
 
-      {/* Media Preview & Upload Progress */}
-      <AnimatePresence>
-        {pendingFile && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="absolute inset-x-4 bottom-24 z-50 flex justify-center"
-          >
-            <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_20px_60px_-10px_rgba(0,0,0,0.3)] border border-[#d1d7db]/40 overflow-hidden backdrop-blur-md bg-white/95">
-              <div className="relative p-2 bg-[#f0f2f5]/50">
-                <button 
-                  onClick={cancelUpload}
-                  disabled={isUploading}
-                  className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all active:scale-90"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                
-                <div className="aspect-video rounded-2xl overflow-hidden bg-black flex items-center justify-center">
-                  {pendingFile.type === 'image' ? (
-                    <img src={pendingFile.url} alt="Preview" className="w-full h-full object-contain" />
-                  ) : pendingFile.type === 'video' ? (
-                    <video src={pendingFile.url} className="w-full h-full object-contain" controls={!isUploading} />
-                  ) : (
-                    <div className="flex flex-col items-center text-white p-6">
-                      <FileIcon className="h-16 w-16 mb-4 opacity-50" />
-                      <p className="text-sm font-medium">{pendingFile.file.name}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6">
-                {isUploading ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-[#00a884] font-semibold text-sm">
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </div>
-                      <span className="text-xs font-bold text-[#54656f]">{Math.round(uploadProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-[#f0f2f5] rounded-full h-2.5 overflow-hidden">
-                      <motion.div 
-                        className="bg-[#00a884] h-full"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${uploadProgress}%` }}
-                        transition={{ duration: 0.1 }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-[#111b21] font-bold text-[15px]">Send Media</h4>
-                      <p className="text-[#667781] text-[13px]">{(pendingFile.file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
-                    <button 
-                      onClick={handleUpload}
-                      className="bg-[#00a884] text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-[#00a884]/20 hover:bg-[#008f70] transition-all transform active:scale-95"
-                    >
-                      Send
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Input Area */}
-      <div className="flex flex-col bg-white border-t border-[#d1d7db]/20 z-10 shadow-[0_-8px_30px_rgba(0,0,0,0.04)] rounded-t-[40px]">
-        {/* Reply Indicator */}
-        <AnimatePresence>
-          {replyingTo && (
-            <motion.div 
-               initial={{ height: 0, opacity: 0 }}
-               animate={{ height: 62, opacity: 1 }}
-               exit={{ height: 0, opacity: 0 }}
-               className="px-10 py-2 bg-[#f0f2f5]/50 flex items-center justify-between border-b border-[#f0f2f5]"
-            >
-              <div className="flex items-center space-x-3 text-sm text-[#54656f] overflow-hidden">
-                <Reply className="h-4 w-4" />
-                <div className="flex flex-col overflow-hidden">
-                  <span className="font-bold text-xs uppercase tracking-wider text-emerald-600">Replying to</span>
-                  <p className="truncate italic text-xs">"{replyingTo.text || 'Media'}"</p>
-                </div>
-              </div>
-              <button onClick={() => setReplyingTo(null)} className="p-1 hover:bg-gray-200 rounded-full">
-                <X className="h-4 w-4" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Smart Replies */}
-        {smartReplies.length > 0 && !inputValue && (
-          <div className="px-10 py-3 flex space-x-2 overflow-x-auto no-scrollbar">
-            {smartReplies.map((reply, i) => (
-              <motion.button
-                key={i}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                onClick={() => {
-                  setInputValue(reply);
-                  handleSendMessage();
-                }}
-                className="whitespace-nowrap px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold ring-1 ring-emerald-500/20 hover:bg-emerald-100 transition-colors shadow-sm"
-              >
-                {reply}
-              </motion.button>
-            ))}
-          </div>
-        )}
-
-        <div className="flex h-[84px] items-center px-8 py-3 space-x-4">
-          <div className="flex space-x-5 text-[#54656f]">
-            <Smile className="h-[28px] w-[28px] cursor-pointer hover:text-emerald-500 transition-all hover:scale-110 active:scale-95" />
-            <div className="relative">
-              <Paperclip 
-                id="attachment-icon"
-                onClick={() => !isUploading && fileInputRef.current?.click()}
-                className={cn(
-                  "h-[28px] w-[28px] cursor-pointer transition-all hover:scale-110 active:scale-95",
-                  isUploading ? "text-[#00a884] opacity-50 cursor-not-allowed" : "hover:text-[#00a884]"
-                )} 
-              />
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                className="hidden"
-                accept="image/*,video/*,.pdf,.doc,.docx,.txt"
-              />
-            </div>
-          </div>
-          <form onSubmit={handleSendMessage} className="flex-1">
-            <div className="bg-[#f0f2f5] rounded-2xl px-6 py-3 transition-all duration-300 ease-in-out focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-500/10 border border-transparent focus-within:border-emerald-500/10 shadow-[inset_0_1px_4px_rgba(0,0,0,0.03)] focus-within:shadow-xl">
-              <input
-                type="text"
-                placeholder="Type a message or use Smart Replies..."
-                className="w-full text-[15.5px] font-sans text-[#111b21] outline-none placeholder:text-[#667781] bg-transparent font-medium"
-                value={inputValue}
-                onChange={handleTyping}
-              />
-            </div>
-          </form>
-          <div className="text-[#54656f] flex items-center justify-center w-14">
-            {inputValue.trim() ? (
-               <motion.button 
-                 initial={{ scale: 0.8, opacity: 0 }}
-                 animate={{ scale: 1, opacity: 1 }}
-                 type="submit" 
-                 onClick={() => handleSendMessage()}
-                 className="bg-emerald-500 p-3.5 rounded-full text-white shadow-xl hover:bg-emerald-600 transition-all transform hover:scale-110 active:scale-90"
-               >
-                 <Send className="h-5 w-5 ml-0.5" />
-               </motion.button>
-            ) : (
-               <div className="p-3.5 hover:bg-[#f0f2f5] rounded-full transition-all cursor-pointer text-[#54656f] hover:text-[#111b21] hover:scale-110 active:scale-95">
-                 <Zap className="h-[26px] w-[26px] text-emerald-500/50 hover:text-emerald-500" />
-               </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ChatInput 
+        chatId={chatId}
+        onSendMessage={async (text) => {
+          if (user) {
+            await chatService.sendMessage(chatId, user.uid, text, 'text', undefined, replyingTo?.messageId);
+            setReplyingTo(null);
+            chatService.setTyping(chatId, user.uid, false);
+          }
+        }}
+        onSendMedia={async (file, duration) => {
+          if (user) {
+            await chatService.sendMediaMessage(chatId, user.uid, file, undefined, duration);
+          }
+        }}
+        onTyping={(isTyping) => {
+          if (user) chatService.setTyping(chatId, user.uid, isTyping);
+        }}
+        replyingTo={replyingTo ? { text: replyingTo.text || 'Media', senderName: replyingTo.senderId === user?.uid ? 'Me' : 'Partner' } : null}
+        onCancelReply={() => setReplyingTo(null)}
+      />
 
       <AnimatePresence>
         {showWhiteboard && (

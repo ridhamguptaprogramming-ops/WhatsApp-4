@@ -3,7 +3,7 @@ import { collection, query, where, onSnapshot, limit, orderBy, doc } from 'fireb
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Chat, User } from '../types';
-import { Search, UserPlus, LogOut, Users, Check, ArrowLeft, ArrowRight, CheckCheck, Pin, MoreVertical, LayoutGrid, Filter, BellRing } from 'lucide-react';
+import { Search, UserPlus, LogOut, Users, Check, ArrowLeft, ArrowRight, CheckCheck, Pin, MoreVertical, LayoutGrid, Filter, BellRing, Activity } from 'lucide-react';
 import { cn, formatDate, formatLastSeen } from '../lib/utils';
 import { logout } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errorHandler';
@@ -13,12 +13,13 @@ import { chatService } from '../services/chatService';
 
 interface SidebarProps {
   onSelectChat: (chatId: string) => void;
+  onViewInsights: () => void;
   selectedChatId: string | null;
 }
 
 type ViewMode = 'chats' | 'users' | 'new-group-select' | 'new-group-info';
 
-export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, onViewInsights, selectedChatId }) => {
   const { user } = useAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -100,6 +101,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
           <motion.button 
             whileHover={{ scale: 1.1 }} 
             whileTap={{ scale: 0.9 }}
+            onClick={onViewInsights} 
+            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            title="Insights"
+          >
+            <Activity className="h-5 w-5" />
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.1 }} 
+            whileTap={{ scale: 0.9 }}
             onClick={() => setViewMode(viewMode === 'chats' ? 'users' : 'chats')} 
             className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
           >
@@ -174,7 +184,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
         {viewMode === 'users' && (
            <div className="divide-y divide-[#f5f6f6]">
              <div className="px-4 py-2 text-[12px] font-semibold text-[#667781] uppercase tracking-wider bg-[#f0f2f5]">All Users</div>
-             {allUsers.filter(u => u.displayName.toLowerCase().includes(search.toLowerCase())).map((u) => (
+             {allUsers.filter(u => 
+               u.displayName.toLowerCase().includes(search.toLowerCase()) || 
+               u.username?.toLowerCase().includes(search.toLowerCase())
+             ).map((u) => (
                <div 
                  key={u.uid} 
                  onClick={async () => {
@@ -197,13 +210,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, selectedChatId }
                    )}
                  </div>
                  <div className="flex-1 overflow-hidden">
-                   <h3 className="font-medium text-[#111b21]">{u.displayName}</h3>
+                   <h3 className="font-medium text-[#111b21] flex items-center">
+                     {u.displayName}
+                     {u.username && <span className="ml-2 text-[10px] text-emerald-500 font-bold">@{u.username}</span>}
+                   </h3>
                    <p className="text-[12px] text-[#667781] truncate">
-                     {u.isOnline ? (
-                       <span className="text-[#00a884] font-medium">Online</span>
-                     ) : u.lastSeen ? (
-                       `Last seen ${formatLastSeen(u.lastSeen)}`
-                     ) : 'Offline'}
+                     {u.statusMessage || (u.isOnline ? "Available" : u.lastSeen ? `Last seen ${formatLastSeen(u.lastSeen)}` : 'Offline')}
                    </p>
                  </div>
                </div>
@@ -388,7 +400,9 @@ const ChatItem: React.FC<{
   }, [chat, user]);
 
   const name = chat.type === 'group' ? chat.name : partner?.displayName;
-  const photo = chat.type === 'group' ? chat.photoURL : partner?.photoURL;
+  const photo = chat.type === 'group' 
+    ? chat.photoURL 
+    : (partner?.privacySettings?.showPhoto === 'nobody' ? 'https://ui-avatars.com/api/?name=?' : partner?.photoURL);
 
   return (
     <div 
