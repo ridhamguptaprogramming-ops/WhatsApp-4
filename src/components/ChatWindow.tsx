@@ -131,62 +131,74 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg, chat, user, isLast, onRe
     <div 
       ref={ref}
       className={cn(
-        "group relative flex flex-col mb-1 transition-all animate-in fade-in slide-in-from-bottom-2 duration-300",
+        "group relative flex flex-col mb-2 transition-all",
         isMe ? "items-end" : "items-start"
       )}
     >
       <div className={cn(
-        "relative max-w-[90%] sm:max-w-[75%] p-1.5 transition-all",
+        "relative max-w-[85%] sm:max-w-[70%] transition-all",
         isMe ? "items-end" : "items-start"
       )}>
         {/* Reply Quote */}
         {replyToMsg && (
-          <div className={cn(
-            "mb-1 px-3 py-2 border-l-4 bg-black/5 rounded-r-lg text-xs opacity-80 flex flex-col",
-            isMe ? "border-emerald-500 bg-emerald-50" : "border-[#111b21]/20 bg-gray-50"
-          )}>
-            <span className="font-bold mb-0.5 text-[10px]">Replying to</span>
-            <p className="truncate italic">"{replyToMsg.text || 'Media'}"</p>
-          </div>
+          <motion.div 
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "mb-[-12px] pb-4 px-4 pt-2 rounded-t-[20px] transition-all opacity-80 border-x border-t",
+              isMe ? "bg-emerald-600/10 border-emerald-500/20 mr-4" : "bg-gray-100 border-gray-200 ml-4"
+            )}
+          >
+            <div className="flex items-center space-x-2 mb-1">
+              <Reply className="h-3 w-3 opacity-40 rotate-180" />
+              <span className="font-black text-[10px] uppercase tracking-wider opacity-60">
+                {replyToMsg.senderId === user?.uid ? 'You' : 'Participant'}
+              </span>
+            </div>
+            <p className="truncate italic text-xs opacity-80 max-w-[200px]">
+              {replyToMsg.text || 'Media attachment'}
+            </p>
+          </motion.div>
         )}
 
         <div className={cn(
-          "px-4 py-2.5 shadow-sm transition-all relative overflow-visible",
-          isMe ? "message-bubble-out" : "message-bubble-in"
+          "px-5 py-3 shadow-[0_2px_12px_rgba(0,0,0,0.03)] transition-all relative overflow-visible rounded-[24px] border",
+          isMe 
+            ? "bg-emerald-500 text-white border-emerald-400 rounded-tr-none shadow-emerald-500/10" 
+            : "bg-white text-[#111b21] border-[#f0f2f5] rounded-tl-none"
         )}>
           {chat?.type === 'group' && !isMe && (
-            <div className="text-[12px] font-bold text-emerald-600 mb-1 opacity-90">Participant</div>
-          )}
-          
-          {renderMedia()}
-          
-          {msg.text && (
-            <div className="markdown-body">
-              <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-            </div>
-          )}
-
-          {msg.isEdited && (
-            <div className="text-[10px] italic opacity-50 text-right mt-0.5">Edited</div>
-          )}
-
-          {msg.isPinned && (
-            <div className="flex items-center text-[10px] opacity-60 mt-1 uppercase tracking-tighter font-bold">
-              <Pin className="h-2.5 w-2.5 mr-1 fill-current" /> Pinned
+            <div className="text-[11px] font-black text-emerald-600 mb-1.5 uppercase tracking-wider opacity-80">
+              {msg.senderId.slice(0, 8)}
             </div>
           )}
           
-          <div className={cn(
-            "flex items-center justify-end space-x-1 mt-1 opacity-70",
-            isMe ? "text-white" : "text-[#667781]"
-          )}>
-            <span className="text-[10px] font-medium">
-              {msg.timestamp ? formatDate(msg.timestamp) : '...'}
+          <div className="relative z-10">
+            {renderMedia()}
+            
+            {msg.text && (
+              <div className={cn(
+                "markdown-body",
+                isMe ? "text-white" : "text-[#111b21]"
+              )}>
+                <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed">
+                  {msg.text}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end space-x-1.5 mt-1.5 opacity-60">
+            {msg.isEdited && (
+              <span className="text-[9px] font-black uppercase tracking-tighter mr-1">Edited</span>
+            )}
+            <span className="text-[10px] font-black tracking-tighter">
+              {msg.timestamp ? formatDate(msg.timestamp) : 'SENDING'}
             </span>
             {isMe && (
                 msg.status === 'read' 
-                  ? <CheckCheck className="h-[13px] w-[13px]" />
-                  : <Check className="h-[13px] w-[13px]" />
+                  ? <CheckCheck className="h-[14px] w-[14px] text-white" />
+                  : <Check className="h-[14px] w-[14px] text-white opacity-40" />
             )}
           </div>
 
@@ -440,7 +452,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
   }, [chat, user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
     
     // Get smart replies for the last message if it's from partner
     if (messages.length > 0) {
@@ -542,16 +554,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
   };
 
   return (
-    <div className="flex h-full flex-1 flex-col bg-[#efeae2] relative overflow-hidden">
-      {/* Header */}
+    <div className="flex h-full flex-1 flex-col bg-[#fdfdfd] relative overflow-hidden">
+      {/* Premium Header */}
       <div 
-        className="flex h-[76px] items-center bg-white/90 backdrop-blur-xl px-6 border-l border-[#d1d7db]/30 z-30 shadow-sm cursor-pointer hover:bg-white transition-all sticky top-0 rounded-b-[40px] shadow-[0_10px_30px_rgba(0,0,0,0.03)]"
+        className="flex h-[80px] items-center bg-white/60 backdrop-blur-3xl px-8 z-40 border-b border-[#f0f2f5] cursor-pointer hover:bg-white/80 transition-all sticky top-0"
         onClick={() => {
           if (chat?.type === 'one-to-one') {
             setShowPartnerProfile(true);
           } else {
-            // For groups, we could show a participant list or group info
-            setShowPartnerProfile(true); // Reusing ProfileView if we can adapt it or just for first participant for now
+            setShowPartnerProfile(true); 
           }
         }}
       >
@@ -560,89 +571,127 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
             layoutId={chat?.chatId}
             src={partner?.photoURL || chat?.photoURL || 'https://ui-avatars.com/api/'} 
             alt="" 
-            className="h-12 w-12 rounded-full border-2 border-white shadow-md object-cover" 
+            className="h-12 w-12 rounded-[18px] border-2 border-white shadow-xl object-cover" 
           />
           {partner?.isOnline && (
-            <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#06cf9c]" />
+            <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 shadow-md" />
           )}
         </div>
         <div className="ml-4 flex-1">
-          <h2 className="font-semibold text-[16.5px] text-[#111b21] tracking-tight">{chat?.type === 'group' ? chat.name : partner?.displayName}</h2>
-          <p className="text-[12px] text-[#667781] font-medium flex items-center">
-            {typing.length > 0 ? (
-               <span className="text-[#00a884] flex items-center italic animate-pulse">
-                 typing...
-               </span>
-            ) : chat?.type === 'group' ? (
-              <span className="flex items-center text-[#54656f]">
-                <Users className="h-3 w-3 mr-1" />
-                {chat.participants.length} participants
-              </span>
-            ) : partner?.isOnline ? (
-              <span className="text-[#00a884] flex items-center animate-in fade-in duration-500">
-                <span className="h-1.5 w-1.5 bg-[#00a884] rounded-full mr-1.5 animate-pulse" />
-                online
-              </span>
-            ) : partner?.lastSeen ? (
-              `last seen ${formatLastSeen(partner.lastSeen)}`
-            ) : 'offline'}
+          <h2 className="font-display font-black text-[18px] text-[#111b21] tracking-tight leading-tight">
+            {chat?.type === 'group' ? chat.name : partner?.displayName}
+          </h2>
+          <p className="text-[11px] text-[#667781] font-black uppercase tracking-[0.1em] flex items-center h-4 mt-0.5">
+            <AnimatePresence mode="wait">
+              {typing.length > 0 ? (
+                <motion.span 
+                  key="typing"
+                  initial={{ opacity: 0, x: -5 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 5 }}
+                  className="text-emerald-500 flex items-center"
+                >
+                  <span className="flex space-x-1 mr-2">
+                    {[0, 1, 2].map(i => (
+                      <motion.div 
+                        key={i}
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                        className="w-1 h-1 bg-emerald-500 rounded-full"
+                      />
+                    ))}
+                  </span>
+                  Typing
+                </motion.span>
+              ) : chat?.type === 'group' ? (
+                <motion.span 
+                  key="group"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center opacity-60"
+                >
+                  <Users className="h-3 w-3 mr-1.5" />
+                  {chat.participants.length} Active
+                </motion.span>
+              ) : partner?.isOnline ? (
+                <motion.span 
+                  key="online"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-emerald-500 flex items-center"
+                >
+                  <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full mr-2 animate-pulse" />
+                  Online Now
+                </motion.span>
+              ) : (
+                <motion.span 
+                  key="offline"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="opacity-40"
+                >
+                  {partner?.lastSeen ? `Seen ${formatLastSeen(partner.lastSeen)}` : 'Disconnected'}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </p>
         </div>
-        <div className="flex space-x-5 text-[#54656f]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center space-x-2 text-[#54656f]" onClick={(e) => e.stopPropagation()}>
           <motion.button 
-            whileHover={{ scale: 1.1, color: '#00a884' }} 
-            whileTap={{ scale: 0.9 }}
-            onClick={() => partner && startCall([partner.uid], 'video', chat?.type === 'group', chatId)}
-            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-            title="Video Call"
-          >
-            <Video className="h-5 w-5" />
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.1, color: '#00a884' }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(16, 185, 129, 0.08)', color: '#10b981' }} 
             whileTap={{ scale: 0.9 }}
             onClick={() => partner && startCall([partner.uid], 'audio', chat?.type === 'group', chatId)}
-            className="p-1.5 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
-            title="Audio Call"
+            className="p-2.5 rounded-xl transition-all"
+            title="Audio Uplink"
           >
             <Phone className="h-5 w-5" />
           </motion.button>
           <motion.button 
-            whileHover={{ scale: 1.1, color: '#00a884' }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(16, 185, 129, 0.08)', color: '#10b981' }} 
             whileTap={{ scale: 0.9 }}
-            onClick={handleSummarize}
-            className="p-1.5 hover:bg-[#f0f2f5] rounded-full transition-colors flex items-center space-x-1"
+            onClick={() => partner && startCall([partner.uid], 'video', chat?.type === 'group', chatId)}
+            className="p-2.5 rounded-xl transition-all"
+            title="Visual Stream"
           >
-            {isSummarizing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
+            <Video className="h-5 w-5" />
           </motion.button>
+          <div className="w-[1px] h-6 bg-[#f0f2f5] mx-2" />
           <motion.button 
-            whileHover={{ scale: 1.1, color: '#00a884' }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(240, 242, 245, 0.8)' }} 
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowWhiteboard(true)}
-            className="p-1.5 hover:bg-[#f0f2f5] rounded-full transition-colors"
+            className="p-2.5 rounded-xl transition-all"
           >
-            <Box className="h-[22px] w-[22px]" />
+            <Box className="h-5 w-5" />
           </motion.button>
           <motion.button 
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(240, 242, 245, 0.8)' }} 
             whileTap={{ scale: 0.9 }}
-            className="p-1.5 hover:bg-[#f0f2f5] rounded-full transition-colors"
+            className="p-2.5 rounded-xl transition-all"
           >
-            <Search id="search-icon" className="h-[22px] w-[22px]" />
+            <Search className="h-5 w-5" />
           </motion.button>
           <motion.button 
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(240, 242, 245, 0.8)' }} 
             whileTap={{ scale: 0.9 }}
-            className="p-1.5 hover:bg-[#f0f2f5] rounded-full transition-colors"
+            className="p-2.5 rounded-xl transition-all"
           >
-            <MoreVertical id="more-options-icon" className="h-[22px] w-[22px]" />
+            <MoreVertical className="h-5 w-5" />
           </motion.button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-10 py-6 rounded-b-[40px] shadow-[inset_0_-10px_20px_rgba(0,0,0,0.02)] bg-gray-50/30">
-        <div className="flex flex-col space-y-2">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-6 py-8 bg-[#fdfdfd] relative">
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.02] mix-blend-multiply transition-opacity duration-1000" 
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M54.626 10.5H60v2H54.626l-3.5 3.5h-2l3.5-3.5H45.5v-2h7.126l-3.5-3.5h2l3.5 3.5zM10.5 45.5V60h-2V45.5l-3.5 3.5h-2l3.5-3.5V36.5h2v7.126l3.5-3.5h2l-3.5 3.5z' fill='%23000000' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E")` }} 
+        />
+        
+        <div className="flex flex-col space-y-4 max-w-5xl mx-auto relative z-10">
           {summary && (
             <motion.div 
               initial={{ height: 0, opacity: 0 }}
@@ -662,18 +711,64 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ chatId }) => {
             <span className="bg-white/90 backdrop-blur-sm text-[12px] px-3 py-1 rounded-full shadow-sm text-[#54656f] uppercase tracking-wider border border-[#d1d7db]/30 font-bold">Today</span>
           </div>
           
-          {messages.map((msg, index) => (
-            <MessageItem 
-              key={msg.messageId} 
-              msg={msg} 
-              chat={chat} 
-              user={user} 
-              isLast={index === messages.length - 1}
-              onReply={setReplyingTo}
-              onTask={handleConvertToTask}
-              replyToMsg={msg.replyTo ? messages.find(m => m.messageId === msg.replyTo) : null}
-            />
-          ))}
+          <AnimatePresence>
+            {messages.map((msg, index) => (
+              <motion.div
+                key={msg.messageId}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                viewport={{ once: true, margin: "-20px" }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ 
+                  type: "spring",
+                  damping: 25,
+                  stiffness: 300,
+                  delay: index > messages.length - 5 ? (index - (messages.length - 5)) * 0.05 : 0 
+                }}
+                layout
+              >
+                <MessageItem 
+                  msg={msg} 
+                  chat={chat} 
+                  user={user} 
+                  isLast={index === messages.length - 1}
+                  onReply={setReplyingTo}
+                  onTask={handleConvertToTask}
+                  replyToMsg={msg.replyTo ? messages.find(m => m.messageId === msg.replyTo) : null}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          
+          <AnimatePresence>
+            {typing.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="flex items-center space-x-2 py-2 px-4"
+              >
+                <div className="flex space-x-1">
+                  {[0, 1, 2].map((i) => (
+                    <motion.div
+                      key={i}
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{
+                        duration: 0.6,
+                        repeat: Infinity,
+                        delay: i * 0.1,
+                      }}
+                      className="w-1.5 h-1.5 bg-[#00a884] rounded-full"
+                    />
+                  ))}
+                </div>
+                <span className="text-[11px] font-bold text-[#00a884] uppercase tracking-widest italic">
+                  {typing.length === 1 ? 'someone is typing' : 'several people typing'}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
           <div ref={messagesEndRef} />
         </div>
       </div>

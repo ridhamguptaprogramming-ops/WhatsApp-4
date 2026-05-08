@@ -164,14 +164,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   return (
-    <div className="relative border-t border-black/5 bg-white/80 backdrop-blur-md px-4 py-3" {...getRootProps()} onPaste={handlePaste}>
+    <div className="relative border-t border-[#f0f2f5] bg-white/60 backdrop-blur-3xl px-8 py-5" {...getRootProps()} onPaste={handlePaste}>
       <input {...getInputProps()} />
       
       {isDragActive && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-emerald-500/10 backdrop-blur-sm border-2 border-dashed border-emerald-500 animate-pulse">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-emerald-500/10 backdrop-blur-xl border-2 border-dashed border-emerald-500/30 rounded-t-[40px] animate-pulse">
           <div className="flex flex-col items-center text-emerald-600">
-            <Paperclip className="h-10 w-10 mb-2" />
-            <span className="font-bold uppercase tracking-widest text-xs">Drop files to send</span>
+            <Paperclip className="h-10 w-10 mb-4" />
+            <span className="font-black uppercase tracking-[0.2em] text-[10px]">Deployment Mode: Drop to Securely Send</span>
           </div>
         </div>
       )}
@@ -180,104 +180,121 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       <AnimatePresence>
         {replyingTo && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="mb-2 p-3 bg-gray-50 rounded-2xl border-l-4 border-emerald-500 flex items-center justify-between"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="mb-4 mx-2 p-4 bg-gray-50/80 backdrop-blur-sm rounded-[24px] border border-gray-100 flex items-center justify-between shadow-sm group"
           >
-            <div className="overflow-hidden">
-              <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Replying to {replyingTo.senderName}</p>
-              <p className="text-xs text-gray-500 truncate">{replyingTo.text}</p>
+            <div className="flex items-center space-x-4 overflow-hidden">
+               <div className="h-10 w-1 bg-emerald-500 rounded-full" />
+               <div className="overflow-hidden">
+                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Uplink Response to {replyingTo.senderName}</p>
+                 <p className="text-sm text-gray-500 truncate italic">"{replyingTo.text}"</p>
+               </div>
             </div>
-            <button onClick={onCancelReply} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-              <X className="h-4 w-4 text-gray-400" />
+            <button onClick={onCancelReply} className="p-2 hover:bg-gray-200/50 rounded-xl transition-colors">
+              <X className="h-5 w-5 text-gray-400" />
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex items-end space-x-2 relative z-10">
-        <div className="flex items-center space-x-1 mb-1">
+      <div className="flex items-end space-x-4 relative z-10 max-w-5xl mx-auto">
+        <div className="flex items-center space-x-2 mb-1">
           <button 
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className={cn("p-2 rounded-xl transition-colors", showEmojiPicker ? "text-emerald-500 bg-emerald-50" : "text-gray-400 hover:bg-gray-100")}
+            className={cn(
+              "p-3 rounded-2xl transition-all active:scale-90", 
+              showEmojiPicker ? "text-emerald-500 bg-emerald-50 shadow-inner" : "text-gray-400 hover:bg-[#f0f2f5]/80"
+            )}
           >
             <Smile className="h-6 w-6" />
           </button>
           
           <div className="relative group">
-            <button className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-xl transition-all">
+            <button className="p-3 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50/50 rounded-2xl transition-all active:scale-95">
               <Paperclip className="h-6 w-6" />
             </button>
-            <div className="absolute bottom-full left-0 mb-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 origin-bottom-left">
-              <div className="bg-white rounded-2xl shadow-xl border border-black/5 p-2 flex flex-col space-y-1">
-                <button className="p-3 hover:bg-emerald-50 rounded-xl text-emerald-600 flex items-center space-x-3 transition-colors">
-                  <ImageIcon className="h-5 w-5" />
-                  <span className="text-xs font-bold whitespace-nowrap">Image / Video</span>
+            <div className="absolute bottom-full left-0 mb-4 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100 origin-bottom-left z-[100]">
+              <div className="bg-white/90 backdrop-blur-2xl rounded-[28px] shadow-2xl border border-[#f0f2f5] p-3 flex flex-col space-y-1 min-w-[200px]">
+                <button className="px-5 py-4 hover:bg-emerald-50 rounded-2xl text-emerald-600 flex items-center space-x-4 transition-all group/item">
+                  <ImageIcon className="h-5 w-5 group-hover/item:scale-110 transition-transform" />
+                  <span className="text-xs font-black uppercase tracking-wider">Visual Asset</span>
                 </button>
-                <button className="p-3 hover:bg-blue-50 rounded-xl text-blue-600 flex items-center space-x-3 transition-colors">
-                  <FileIcon className="h-5 w-5" />
-                  <span className="text-xs font-bold whitespace-nowrap">Document</span>
+                <button className="px-5 py-4 hover:bg-blue-50 rounded-2xl text-blue-600 flex items-center space-x-4 transition-all group/item">
+                  <FileIcon className="h-5 w-5 group-hover/item:scale-110 transition-transform" />
+                  <span className="text-xs font-black uppercase tracking-wider">Data Payload</span>
                 </button>
               </div>
             </div>
           </div>
-
-          <button 
-            onClick={() => setShowSmartTools(!showSmartTools)}
-            className={cn("p-2 rounded-xl transition-all", showSmartTools ? "text-purple-500 bg-purple-50" : "text-gray-400 hover:text-purple-500 hover:bg-purple-50")}
-          >
-            <Sparkles className="h-6 w-6" />
-          </button>
         </div>
 
-        <div className="flex-1 relative">
+        <div className="flex-1 relative group/input">
           <textarea
             ref={textareaRef}
             rows={1}
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleKeyDown}
-            placeholder={isRecording ? "Recording..." : "Type a message..."}
+            placeholder={isRecording ? "Neural Uplink Active..." : "Transmit message..."}
             disabled={isRecording}
-            className="w-full bg-gray-100 rounded-2xl px-4 py-3 pr-12 outline-none resize-none text-[15px] max-h-[150px] transition-all focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+            className={cn(
+              "w-full bg-[#f0f2f5]/50 rounded-[28px] px-6 py-4 pr-16 outline-none resize-none text-[15px] font-medium max-h-[200px] transition-all",
+              "focus:bg-white focus:ring-[6px] focus:ring-emerald-500/5 focus:shadow-[0_8px_30px_rgb(0,0,0,0.04)] placeholder:text-[#667781]/50 placeholder:font-bold placeholder:uppercase placeholder:tracking-widest placeholder:text-[10px]"
+            )}
           />
           
           <AnimatePresence>
             {text.length > 0 && !isRecording && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="absolute right-2 bottom-2 p-1.5 bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-500/30 cursor-pointer active:scale-95 transition-transform"
+                initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.8, x: 10 }}
+                className="absolute right-3 bottom-3 p-2 bg-emerald-500 text-white rounded-2xl shadow-xl shadow-emerald-500/20 cursor-pointer active:scale-95 transition-all hover:bg-emerald-600"
                 onClick={handleSend}
               >
-                {isSending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                {isSending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {!text.length && (
+        <div className="flex items-center space-x-2 mb-1">
           <button 
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onMouseLeave={stopRecording}
+            onClick={() => setShowSmartTools(!showSmartTools)}
             className={cn(
-              "p-3 rounded-2xl transition-all relative overflow-hidden",
-              isRecording ? "bg-rose-500 text-white scale-110 shadow-lg shadow-rose-500/30" : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
+              "p-3 rounded-2xl transition-all active:scale-90", 
+              showSmartTools ? "text-purple-500 bg-purple-50 shadow-inner" : "text-gray-400 hover:text-purple-500 hover:bg-purple-50/50"
             )}
           >
-            {isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-            {isRecording && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute inset-0 bg-white/20 animate-pulse"
-              />
-            )}
+            <Sparkles className="h-6 w-6" />
           </button>
-        )}
+
+          {!text.length && (
+            <button 
+              onMouseDown={startRecording}
+              onMouseUp={stopRecording}
+              onMouseLeave={stopRecording}
+              className={cn(
+                "p-3.5 rounded-2.5xl transition-all relative overflow-hidden group shadow-xl active:scale-95",
+                isRecording ? "bg-rose-500 text-white rotate-6 scale-110 shadow-rose-500/20" : "bg-emerald-500 text-white shadow-emerald-500/20"
+              )}
+            >
+              <div className="relative z-10 transition-transform group-hover:scale-110">
+                {isRecording ? <Square className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+              </div>
+              {isRecording && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.2, 0.5, 0.2] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="absolute inset-0 bg-white"
+                />
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Recording Display */}

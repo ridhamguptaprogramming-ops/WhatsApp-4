@@ -77,68 +77,61 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, onViewInsights, 
   };
 
   return (
-    <div className="flex h-full w-[380px] flex-col border-r border-[#d1d7db]/30 bg-[#fdfdfd] min-w-[380px] z-40">
+    <div className="flex h-full w-[380px] flex-col border-r border-[#f0f2f5] bg-white min-w-[380px] z-40 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
       {/* Premium Header */}
-      <div className="flex h-[80px] items-center justify-between px-6 bg-white/80 backdrop-blur-xl border-b border-[#f0f2f5]">
+      <div className="flex h-[80px] items-center justify-between px-6 bg-white/40 backdrop-blur-3xl sticky top-0 z-50">
         <div 
           className="flex items-center space-x-3 cursor-pointer group"
           onClick={() => setSelectedProfileUserId(user?.uid || null)}
         >
           <div className="relative">
-            <img 
+            <motion.img 
+              whileHover={{ scale: 1.05 }}
               src={user?.photoURL} 
               alt="Avatar" 
-              className="h-12 w-12 rounded-2xl object-cover ring-2 ring-white shadow-lg transition-all group-hover:scale-105" 
+              className="h-11 w-11 rounded-[18px] object-cover ring-2 ring-white shadow-xl transition-shadow group-hover:shadow-emerald-500/10" 
             />
-            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+            <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
           </div>
-          <div>
-            <h1 className="font-display font-bold text-[17px] text-[#111b21]">Chatty AI</h1>
-            <p className="text-[11px] text-[#667781] font-bold uppercase tracking-wider">Productivity Hub</p>
+          <div className="flex flex-col">
+            <h1 className="font-display font-black text-[18px] text-[#111b21] leading-tight tracking-tight">Messages</h1>
+            <p className="text-[10px] text-[#667781] font-black uppercase tracking-[0.15em] opacity-60">Premium Uplink</p>
           </div>
         </div>
-        <div className="flex items-center space-x-4 text-[#54656f]">
+        <div className="flex items-center space-x-1">
           <motion.button 
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(16, 185, 129, 0.1)' }} 
             whileTap={{ scale: 0.9 }}
             onClick={onViewInsights} 
-            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            className="p-2.5 text-[#54656f] hover:text-emerald-600 rounded-xl transition-colors"
             title="Insights"
           >
             <Activity className="h-5 w-5" />
           </motion.button>
           <motion.button 
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(16, 185, 129, 0.1)' }} 
             whileTap={{ scale: 0.9 }}
             onClick={() => setViewMode(viewMode === 'chats' ? 'users' : 'chats')} 
-            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            className="p-2.5 text-[#54656f] hover:text-emerald-600 rounded-xl transition-colors"
           >
             <UserPlus className="h-5 w-5" />
           </motion.button>
           <motion.button 
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1, backgroundColor: 'rgba(16, 185, 129, 0.1)' }} 
             whileTap={{ scale: 0.9 }}
             onClick={() => setViewMode('new-group-select')} 
-            className="p-2 hover:bg-emerald-50 hover:text-emerald-600 rounded-xl transition-all"
+            className="p-2.5 text-[#54656f] hover:text-emerald-600 rounded-xl transition-colors"
           >
             <Users className="h-5 w-5" />
-          </motion.button>
-          <motion.button 
-            whileHover={{ scale: 1.05 }} 
-            whileTap={{ scale: 0.95 }}
-            onClick={logout} 
-            className="p-2 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
-          >
-            <LogOut className="h-5 w-5" />
           </motion.button>
         </div>
       </div>
 
       {/* Modern Search & Filters */}
-      <div className="px-6 py-4 space-y-4 bg-white/50 border-b border-[#f0f2f5]">
+      <div className="px-6 pb-4 space-y-4">
         <div className={cn(
-          "relative flex items-center rounded-2xl bg-gray-100/50 px-4 py-3 transition-all duration-300",
-          "focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-xl"
+          "relative flex items-center rounded-2xl bg-[#f0f2f5]/50 px-4 py-3 transition-all duration-500 group",
+          "focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/10 focus-within:shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
         )}>
           {viewMode !== 'chats' ? (
              <button 
@@ -148,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, onViewInsights, 
                <ArrowLeft className="h-5 w-5" />
              </button>
           ) : (
-             <Search className="mr-3 h-[18px] w-[18px] text-[#54656f]" />
+             <Search className="mr-3 h-[18px] w-[18px] text-[#54656f] group-focus-within:text-emerald-500 transition-colors" />
           )}
           <input
             type="text"
@@ -160,16 +153,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectChat, onViewInsights, 
         </div>
 
         {viewMode === 'chats' && (
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar scroll-smooth">
             {(['all', 'unread', 'groups'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setActiveFilter(filter)}
                 className={cn(
-                  "px-4 py-1.5 rounded-full text-[12px] font-bold tracking-tight capitalize transition-all",
+                  "px-4 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
                   activeFilter === filter 
-                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" 
-                    : "bg-gray-100 text-[#667781] hover:bg-gray-200"
+                    ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20" 
+                    : "bg-[#f0f2f5] text-[#667781] hover:bg-[#e9edef] hover:text-[#111b21]"
                 )}
               >
                 {filter}
@@ -408,14 +401,14 @@ const ChatItem: React.FC<{
     <div 
       onClick={onClick}
       className={cn(
-        "flex cursor-pointer items-center px-6 py-4 transition-all duration-300 relative group",
-        active ? "bg-emerald-500/5 ring-1 ring-emerald-500/10" : "hover:bg-gray-50"
+        "flex cursor-pointer items-center px-6 py-4 transition-all duration-500 relative group mx-2 my-1 rounded-[24px] overflow-hidden",
+        active ? "bg-emerald-50 shadow-[0_10px_30px_rgba(16,185,129,0.08)] scale-[1.02]" : "hover:bg-[#f8f9fa]"
       )}
     >
       {active && (
         <motion.div 
           layoutId="active-indicator"
-          className="absolute left-0 w-1 h-1/2 bg-emerald-500 rounded-r-full"
+          className="absolute left-0 w-1.5 h-[40%] bg-emerald-500 rounded-r-full"
         />
       )}
       <div 
@@ -427,31 +420,34 @@ const ChatItem: React.FC<{
           }
         }}
       >
-        <img 
-          src={photo || 'https://ui-avatars.com/api/?name=?'} 
-          alt="" 
-          className={cn(
-            "h-[54px] w-[54px] rounded-2xl object-cover transition-all duration-300 shadow-sm",
-            active ? "scale-105" : "group-hover:scale-105"
-          )} 
-        />
+        <div className="relative p-0.5 rounded-[20px] bg-gradient-to-tr from-emerald-500/10 to-transparent">
+          <img 
+            src={photo || 'https://ui-avatars.com/api/?name=?'} 
+            alt="" 
+            className={cn(
+              "h-14 w-14 rounded-[18px] object-cover transition-all duration-500 shadow-sm",
+              active ? "ring-2 ring-white" : "group-hover:scale-105"
+            )} 
+          />
+        </div>
         {partner?.isOnline && (
-          <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+          <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-md" />
         )}
         {(chat.unreadCount?.[user?.uid || ''] || 0) > 0 && !active && (
-          <div className="absolute -top-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse shadow-sm" />
+          <div className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-emerald-500 border-2 border-white rounded-full animate-bounce shadow-md" />
         )}
       </div>
       <div className="flex-1 overflow-hidden">
         <div className="flex items-center justify-between mb-1">
           <h3 className={cn(
-            "truncate text-[15px] tracking-tight font-display",
-            (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "font-bold text-[#111b21]" : "font-semibold text-[#111b21]"
+            "truncate text-[15.5px] tracking-tight font-display transition-colors",
+            (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "font-black text-[#111b21]" : "font-bold text-[#111b21]/90",
+            active && "text-emerald-900"
           )}>{name || 'Loading...'}</h3>
           {chat.lastMessage?.timestamp && (
             <span className={cn(
-              "text-[10px] font-bold tracking-tighter ml-2 uppercase", 
-              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-emerald-500" : "text-[#667781]/60"
+              "text-[10px] font-black tracking-tighter ml-2 uppercase opacity-60", 
+              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-emerald-600 opacity-100" : "text-[#667781]"
             )}>
               {formatDate(chat.lastMessage.timestamp)}
             </span>
@@ -460,21 +456,22 @@ const ChatItem: React.FC<{
         <div className="flex justify-between items-center whitespace-nowrap">
           <div className="flex items-center space-x-1.5 flex-1 overflow-hidden mr-3">
             {chat.lastMessage?.senderId === user?.uid && (
-              <span className="flex-shrink-0 opacity-60">
+              <span className="flex-shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">
                 {chat.lastMessage.status === 'read' ? (
                   <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
                 ) : <Check className="h-3.5 w-3.5" />}
               </span>
             )}
             <p className={cn(
-              "truncate text-[13px] leading-tight",
-              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-[#111b21] font-bold" : "text-[#667781]"
+              "truncate text-[13px] leading-tight transition-colors",
+              (chat.unreadCount?.[user?.uid || ''] || 0) > 0 ? "text-[#111b21] font-bold" : "text-[#667781]",
+              active && "text-emerald-700/80"
             )}>
               {chat.lastMessage?.text || 'No messages yet'}
             </p>
           </div>
           {(chat.unreadCount?.[user?.uid || ''] || 0) > 0 && (
-            <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-lg shadow-emerald-500/20">
+            <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-lg shadow-xl shadow-emerald-500/20">
               {chat.unreadCount![user!.uid]}
             </span>
           )}
